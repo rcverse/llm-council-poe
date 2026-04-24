@@ -9,7 +9,7 @@ This repository is a fork of the original LLM Council project. The goal of this 
 - Added dual-provider support through a shared OpenAI-compatible client flow.
 - Added provider selection via config/env (`openrouter` or `poe`).
 - Kept backward compatibility for existing OpenRouter-only setups.
-- Kept the original 3-stage council behavior and UI flow unchanged.
+- Kept the original 3-stage council behavior unchanged.
 
 In a bit more detail, here is what happens when you submit a query:
 
@@ -65,20 +65,14 @@ Provider details:
 Migration note:
 - Existing setups with only `OPENROUTER_API_KEY` continue to work (default provider is OpenRouter).
 
-### 3. Configure Models (Optional)
+### 3. Configure Runtime Settings (Optional)
 
-Edit `backend/config.py` to customize the council:
+You can now configure provider, API URL, council models, and chairman model from the UI:
 
-```python
-COUNCIL_MODELS = [
-    "openai/gpt-5.1",
-    "google/gemini-3-pro-preview",
-    "anthropic/claude-sonnet-4.5",
-    "x-ai/grok-4",
-]
-
-CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
-```
+- Open the **Settings** button in the sidebar.
+- Save settings to apply them to new requests.
+- Non-secret runtime settings are persisted in `data/settings.json`.
+- API keys are accepted via settings but are not returned by the API.
 
 ## Running the Application
 
@@ -106,5 +100,5 @@ Then open http://localhost:5173 in your browser.
 
 - **Backend:** FastAPI (Python 3.10+), async httpx, OpenAI-compatible provider client (OpenRouter/Poe)
 - **Frontend:** React + Vite, react-markdown for rendering
-- **Storage:** JSON files in `data/conversations/`
+- **Storage:** JSON files in `data/conversations/` and `data/settings.json`
 - **Package Management:** uv for Python, npm for JavaScript

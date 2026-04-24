@@ -110,6 +110,7 @@ function App() {
       const messages = [...prev.messages];
       const lastIndex = messages.length - 1;
       const lastMsg = messages[lastIndex];
+      if (!lastMsg || lastMsg.role !== 'assistant') return prev;
       messages[lastIndex] = updater(lastMsg);
       return { ...prev, messages };
     });
@@ -248,15 +249,16 @@ function App() {
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
       />
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        settings={settings}
-        isLoading={isSettingsLoading}
-        isSaving={isSettingsSaving}
-        error={settingsError || settingsSaveError}
-        onClose={handleCloseSettings}
-        onSave={handleSaveSettings}
-      />
+      {isSettingsOpen && (
+        <SettingsModal
+          settings={settings}
+          isLoading={isSettingsLoading}
+          isSaving={isSettingsSaving}
+          error={settingsError || settingsSaveError}
+          onClose={handleCloseSettings}
+          onSave={handleSaveSettings}
+        />
+      )}
     </div>
   );
 }

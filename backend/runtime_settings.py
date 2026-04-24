@@ -1,6 +1,8 @@
 """Runtime settings resolution and persistence for configurable council settings."""
 
 import json
+import os
+from threading import Lock
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -22,6 +24,7 @@ SETTINGS_PATH = Path("data/settings.json")
 _secret_overrides: Dict[str, Optional[str]] = {
     "llm_api_key": None,
 }
+_secret_lock = Lock()
 
 
 def _settings_template() -> Dict[str, Any]:
@@ -43,8 +46,8 @@ def _read_settings_file() -> Dict[str, Any]:
             data = json.load(f)
             if isinstance(data, dict):
                 return data
-    except Exception:
-        pass
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Error reading runtime settings file: {type(exc).__name__}")
 
     return {}
 
@@ -77,8 +80,6 @@ def _provider_default_url(provider: str) -> str:
 
 
 def _env_api_key(provider: str) -> Optional[str]:
-    import os
-
     generic_key = (os.getenv("LLM_API_KEY") or "").strip()
     if generic_key:
         return generic_key
@@ -91,9 +92,17 @@ def _env_api_key(provider: str) -> Optional[str]:
     return openrouter_key or None
 
 
-def _env_api_url(provider: str) -> str:
-    import os
+def _get_secret_api_key() -> Optional[str]:
+    with _secret_lock:
+        return _secret_overrides.get("llm_api_key")
 
+
+def _set_secret_api_key(value: Optional[str]) -> None:
+    with _secret_lock:
+        _secret_overrides["llm_api_key"] = value
+
+
+def _env_api_url(provider: str) -> str:
     generic_url = (os.getenv("LLM_API_URL") or "").strip()
     if generic_url:
         return generic_url
@@ -115,7 +124,7 @@ def get_effective_settings() -> Dict[str, Any]:
     council_models = _normalize_models(persisted.get("council_models"))
     chairman_model = str(persisted.get("chairman_model") or "").strip() or CHAIRMAN_MODEL
 
-    api_key = _secret_overrides.get("llm_api_key") or _env_api_key(provider)
+    api_key = _get_secret_api_key() or _env_api_key(provider)
     has_api_key = bool(api_key and str(api_key).strip())
 
     settings = _settings_template()
@@ -140,7 +149,7 @@ def get_runtime_provider_settings() -> Tuple[str, Optional[str], str]:
     """Return provider settings including resolved API key for internal runtime use."""
     settings = get_effective_settings()
     provider = settings["llm_provider"]
-    api_key = _secret_overrides.get("llm_api_key") or _env_api_key(provider)
+    api_key = _get_secret_api_key() or _env_api_key(provider)
     return provider, api_key, settings["llm_api_url"]
 
 
@@ -156,7 +165,9 @@ def update_settings(updates: Dict[str, Any]) -> Dict[str, Any]:
     if "llm_provider" in updates and updates["llm_provider"] is not None:
         raw_provider = str(updates["llm_provider"]).strip().lower()
         if raw_provider not in SUPPORTED_PROVIDERS:
-            raise ValueError("Unsupported provider")
+            raise ValueError(
+                f"Unsupported provider. Supported providers: {sorted(SUPPORTED_PROVIDERS)}"
+            )
         new_persisted["llm_provider"] = raw_provider
 
     if "llm_api_url" in updates and updates["llm_api_url"] is not None:
@@ -180,7 +191,7 @@ def update_settings(updates: Dict[str, Any]) -> Dict[str, Any]:
 
     if "llm_api_key" in updates and updates["llm_api_key"] is not None:
         api_key = str(updates["llm_api_key"]).strip()
-        _secret_overrides["llm_api_key"] = api_key or None
+        _set_secret_api_key(api_key or None)
 
     _write_settings_file(new_persisted)
     return get_public_settings()

@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import './SettingsModal.css';
 
+const PROVIDER_HELP_TEXT = {
+  poe: 'Poe uses an OpenAI-compatible endpoint and API key.',
+  openrouter: 'OpenRouter remains the default provider.',
+};
+
 export default function SettingsModal({
-  isOpen,
   settings,
   isLoading,
   isSaving,
@@ -10,32 +14,18 @@ export default function SettingsModal({
   onClose,
   onSave,
 }) {
-  const [provider, setProvider] = useState('openrouter');
-  const [apiUrl, setApiUrl] = useState('');
-  const [modelsText, setModelsText] = useState('');
-  const [chairmanModel, setChairmanModel] = useState('');
+  const [provider, setProvider] = useState(settings?.llm_provider || 'openrouter');
+  const [apiUrl, setApiUrl] = useState(settings?.llm_api_url || '');
+  const [modelsText, setModelsText] = useState(
+    (settings?.council_models || []).join('\n')
+  );
+  const [chairmanModel, setChairmanModel] = useState(settings?.chairman_model || '');
   const [apiKey, setApiKey] = useState('');
   const [validationError, setValidationError] = useState('');
 
-  useEffect(() => {
-    if (!isOpen || !settings) return;
-
-    setProvider(settings.llm_provider || 'openrouter');
-    setApiUrl(settings.llm_api_url || '');
-    setModelsText((settings.council_models || []).join('\n'));
-    setChairmanModel(settings.chairman_model || '');
-    setApiKey('');
-    setValidationError('');
-  }, [isOpen, settings]);
-
   const providerHelp = useMemo(() => {
-    if (provider === 'poe') {
-      return 'Poe uses an OpenAI-compatible endpoint and API key.';
-    }
-    return 'OpenRouter remains the default provider.';
+    return PROVIDER_HELP_TEXT[provider] || 'Use an OpenAI-compatible provider.';
   }, [provider]);
-
-  if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();

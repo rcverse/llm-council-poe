@@ -13,18 +13,15 @@ def _resolve_provider_settings() -> Tuple[Optional[str], Optional[str], Optional
     provider, api_key, api_url = get_runtime_provider_settings()
 
     if not api_key:
-        print(f"Error: Missing API key for provider '{provider}'.")
+        print("Error: Missing API key in runtime settings.")
         return provider, None, api_url
 
     if not api_url:
-        print(f"Error: Missing API URL for provider '{provider}'.")
+        print("Error: Missing API URL in runtime settings.")
         return provider, api_key, None
 
     if provider not in SUPPORTED_PROVIDERS:
-        print(
-            f"Error: Unsupported LLM_PROVIDER '{provider}'. "
-            f"Supported providers: {sorted(SUPPORTED_PROVIDERS)}"
-        )
+        print("Error: Unsupported LLM_PROVIDER in runtime settings.")
         return None, None, None
 
     return provider, api_key, api_url
@@ -47,18 +44,21 @@ def _build_request(
     return headers, payload
 
 
-def _parse_response(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _parse_response(data: Dict[str, Any], model: str) -> Optional[Dict[str, Any]]:
     """Parse OpenAI-compatible response safely."""
     choices = data.get("choices")
     if not isinstance(choices, list) or not choices:
+        print(f"Error querying model {model}: response missing choices array")
         return None
 
     first_choice = choices[0]
     if not isinstance(first_choice, dict):
+        print(f"Error querying model {model}: first choice is not an object")
         return None
 
     message = first_choice.get("message")
     if not isinstance(message, dict):
+        print(f"Error querying model {model}: message payload missing")
         return None
 
     return {
@@ -99,17 +99,14 @@ async def query_model(
             response.raise_for_status()
 
             data = response.json()
-            parsed = _parse_response(data)
-            if parsed is None:
-                print("Error querying model: invalid response format")
-                return None
-            return parsed
+            return _parse_response(data, model)
 
-    except httpx.HTTPStatusError:
-        print("Error querying model: provider request failed")
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code if exc.response is not None else "unknown"
+        print(f"Error querying model {model}: provider status {status}")
         return None
-    except Exception:
-        print("Error querying model: provider request failed")
+    except Exception as exc:
+        print(f"Error querying model {model}: {type(exc).__name__}: {str(exc)}")
         return None
 
 
