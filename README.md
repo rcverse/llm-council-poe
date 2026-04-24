@@ -2,7 +2,14 @@
 
 ![llmcouncil](header.jpg)
 
-The idea of this repo is that instead of asking a question to your favorite LLM provider (e.g. OpenAI GPT 5.1, Google Gemini 3.0 Pro, Anthropic Claude Sonnet 4.5, xAI Grok 4, etc.), you can group them into your "LLM Council". This repo is a simple, local web app that essentially looks like ChatGPT except it uses a configurable OpenAI-compatible provider (OpenRouter or Poe) to send your query to multiple LLMs, it then asks them to review and rank each other's work, and finally a Chairman LLM produces the final response.
+This repository is a fork of the original LLM Council project. The goal of this fork is to keep the original experience intact while adding provider flexibility for this repo's users.
+
+## What changed in this fork
+
+- Added dual-provider support through a shared OpenAI-compatible client flow.
+- Added provider selection via config/env (`openrouter` or `poe`).
+- Kept backward compatibility for existing OpenRouter-only setups.
+- Kept the original 3-stage council behavior and UI flow unchanged.
 
 In a bit more detail, here is what happens when you submit a query:
 
@@ -14,7 +21,7 @@ In a bit more detail, here is what happens when you submit a query:
 
 This project was 99% vibe coded as a fun Saturday hack because I wanted to explore and evaluate a number of LLMs side by side in the process of [reading books together with LLMs](https://x.com/karpathy/status/1990577951671509438). It's nice and useful to see multiple responses side by side, and also the cross-opinions of all LLMs on each other's outputs. I'm not going to support it in any way, it's provided here as is for other people's inspiration and I don't intend to improve it. Code is ephemeral now and libraries are over, ask your LLM to change it in whatever way you like.
 
-## Setup
+## Setup (fork-specific notes)
 
 ### 1. Install Dependencies
 
