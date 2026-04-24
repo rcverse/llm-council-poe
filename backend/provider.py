@@ -10,6 +10,7 @@ from .config import (
     LLM_API_KEY,
     LLM_API_URL,
     OPENROUTER_API_KEY,
+    DEFAULT_LLM_PROVIDER,
 )
 
 SUPPORTED_PROVIDERS = {"openrouter", "poe"}
@@ -19,7 +20,7 @@ def _resolve_provider_settings() -> Tuple[Optional[str], Optional[str], Optional
     """Resolve active provider and credentials."""
     provider = (LLM_PROVIDER or "").strip().lower()
     if not provider:
-        provider = "openrouter"
+        provider = DEFAULT_LLM_PROVIDER
 
     if provider not in SUPPORTED_PROVIDERS:
         print(
@@ -117,12 +118,16 @@ async def query_model(
             data = response.json()
             parsed = _parse_response(data)
             if parsed is None:
-                print(f"Error querying model {model}: invalid response format from {provider}")
+                print("Error querying model: invalid response format")
                 return None
             return parsed
 
-    except Exception as e:
-        print(f"Error querying model {model} via {provider}: {e}")
+    except httpx.HTTPStatusError as exc:
+        status_code = exc.response.status_code if exc.response else "unknown"
+        print(f"Error querying model: provider request failed with status {status_code}")
+        return None
+    except Exception:
+        print("Error querying model: provider request failed")
         return None
 
 

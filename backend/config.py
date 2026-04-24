@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Provider selection (supported: "openrouter", "poe")
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openrouter")
+DEFAULT_LLM_PROVIDER = "openrouter"
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", DEFAULT_LLM_PROVIDER)
 
 # Backward-compatible OpenRouter-specific API key
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
