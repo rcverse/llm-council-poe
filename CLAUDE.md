@@ -11,12 +11,12 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 ### Backend Structure (`backend/`)
 
 **`config.py`**
-- Contains `COUNCIL_MODELS` (list of OpenRouter model identifiers)
+- Contains `COUNCIL_MODELS` (list of model identifiers)
 - Contains `CHAIRMAN_MODEL` (model that synthesizes final answer)
-- Uses environment variable `OPENROUTER_API_KEY` from `.env`
+- Uses provider settings from `.env` (`LLM_PROVIDER`, `LLM_API_KEY`, `LLM_API_URL`) with OpenRouter backward compatibility
 - Backend runs on **port 8001** (NOT 8000 - user had another app on 8000)
 
-**`openrouter.py`**
+**`provider.py`**
 - `query_model()`: Single async model query
 - `query_models_parallel()`: Parallel queries using `asyncio.gather()`
 - Returns dict with 'content' and optional 'reasoning_details'
@@ -122,8 +122,8 @@ All backend modules use relative imports (e.g., `from .config import ...`) not a
 ### Markdown Rendering
 All ReactMarkdown components must be wrapped in `<div className="markdown-content">` for proper spacing. This class is defined globally in `index.css`.
 
-### Model Configuration
-Models are hardcoded in `backend/config.py`. Chairman can be same or different from council members. The current default is Gemini as chairman per user preference.
+### Model/Provider Configuration
+Models are hardcoded in `backend/config.py`. Chairman can be same or different from council members. The active provider is selected by `LLM_PROVIDER` and currently supports OpenRouter and Poe through an OpenAI-compatible API format.
 
 ## Common Gotchas
 
@@ -143,7 +143,7 @@ Models are hardcoded in `backend/config.py`. Chairman can be same or different f
 
 ## Testing Notes
 
-Use `test_openrouter.py` to verify API connectivity and test different model identifiers before adding to council. The script tests both streaming and non-streaming modes.
+Use provider smoke checks to verify API connectivity and test different model identifiers before adding to council.
 
 ## Data Flow Summary
 

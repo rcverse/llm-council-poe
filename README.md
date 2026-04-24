@@ -2,7 +2,7 @@
 
 ![llmcouncil](header.jpg)
 
-The idea of this repo is that instead of asking a question to your favorite LLM provider (e.g. OpenAI GPT 5.1, Google Gemini 3.0 Pro, Anthropic Claude Sonnet 4.5, xAI Grok 4, eg.c), you can group them into your "LLM Council". This repo is a simple, local web app that essentially looks like ChatGPT except it uses OpenRouter to send your query to multiple LLMs, it then asks them to review and rank each other's work, and finally a Chairman LLM produces the final response.
+The idea of this repo is that instead of asking a question to your favorite LLM provider (e.g. OpenAI GPT 5.1, Google Gemini 3.0 Pro, Anthropic Claude Sonnet 4.5, xAI Grok 4, eg.c), you can group them into your "LLM Council". This repo is a simple, local web app that essentially looks like ChatGPT except it uses a configurable OpenAI-compatible provider (OpenRouter or Poe) to send your query to multiple LLMs, it then asks them to review and rank each other's work, and finally a Chairman LLM produces the final response.
 
 In a bit more detail, here is what happens when you submit a query:
 
@@ -32,15 +32,31 @@ npm install
 cd ..
 ```
 
-### 2. Configure API Key
+### 2. Configure Provider + API Credentials
 
 Create a `.env` file in the project root:
 
 ```bash
+# Choose provider: "openrouter" (default) or "poe"
+LLM_PROVIDER=openrouter
+
+# Optional generic credentials (works for both providers)
+# LLM_API_KEY=...
+# LLM_API_URL=https://.../v1/chat/completions
+
+# Backward-compatible OpenRouter setup
 OPENROUTER_API_KEY=sk-or-v1-...
+
+# Optional provider-specific Poe key (used when LLM_PROVIDER=poe and LLM_API_KEY is unset)
+# POE_API_KEY=...
 ```
 
-Get your API key at [openrouter.ai](https://openrouter.ai/). Make sure to purchase the credits you need, or sign up for automatic top up.
+Provider details:
+- OpenRouter API key: [openrouter.ai](https://openrouter.ai/)
+- Poe can be used via an OpenAI-compatible endpoint and key by setting `LLM_PROVIDER=poe` and `LLM_API_KEY` (or `POE_API_KEY`).
+
+Migration note:
+- Existing setups with only `OPENROUTER_API_KEY` continue to work (default provider is OpenRouter).
 
 ### 3. Configure Models (Optional)
 
@@ -81,7 +97,7 @@ Then open http://localhost:5173 in your browser.
 
 ## Tech Stack
 
-- **Backend:** FastAPI (Python 3.10+), async httpx, OpenRouter API
+- **Backend:** FastAPI (Python 3.10+), async httpx, OpenAI-compatible provider client (OpenRouter/Poe)
 - **Frontend:** React + Vite, react-markdown for rendering
 - **Storage:** JSON files in `data/conversations/`
 - **Package Management:** uv for Python, npm for JavaScript
