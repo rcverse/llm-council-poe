@@ -6,7 +6,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Provider selection (supported: "openrouter", "poe")
-DEFAULT_LLM_PROVIDER = "openrouter"
+PROVIDER_OPENROUTER = "openrouter"
+PROVIDER_POE = "poe"
+DEFAULT_LLM_PROVIDER = PROVIDER_OPENROUTER
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", DEFAULT_LLM_PROVIDER)
 
 # Backward-compatible OpenRouter-specific API key
@@ -15,7 +17,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 # Generic API key with provider-specific fallbacks
 LLM_API_KEY = os.getenv("LLM_API_KEY")
 if not LLM_API_KEY:
-    if LLM_PROVIDER == "poe":
+    if LLM_PROVIDER == PROVIDER_POE:
         LLM_API_KEY = os.getenv("POE_API_KEY")
     else:
         LLM_API_KEY = OPENROUTER_API_KEY
@@ -38,7 +40,7 @@ POE_API_URL = "https://api.poe.com/v1/chat/completions"
 # Generic API URL with provider-specific default fallback
 LLM_API_URL = os.getenv("LLM_API_URL")
 if not LLM_API_URL:
-    if LLM_PROVIDER == "poe":
+    if LLM_PROVIDER == PROVIDER_POE:
         LLM_API_URL = os.getenv("POE_API_URL", POE_API_URL)
     else:
         LLM_API_URL = os.getenv("OPENROUTER_API_URL", OPENROUTER_API_URL)
