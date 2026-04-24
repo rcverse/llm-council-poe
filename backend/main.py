@@ -11,6 +11,7 @@ import asyncio
 
 from . import storage
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
+from .runtime_settings import get_public_settings, update_settings
 
 app = FastAPI(title="LLM Council API")
 
@@ -50,6 +51,24 @@ class Conversation(BaseModel):
     messages: List[Dict[str, Any]]
 
 
+class RuntimeSettings(BaseModel):
+    """Runtime settings returned to clients."""
+    llm_provider: str
+    llm_api_url: str
+    council_models: List[str]
+    chairman_model: str
+    has_api_key: bool
+
+
+class UpdateRuntimeSettingsRequest(BaseModel):
+    """Request to update runtime settings."""
+    llm_provider: str | None = None
+    llm_api_url: str | None = None
+    council_models: List[str] | None = None
+    chairman_model: str | None = None
+    llm_api_key: str | None = None
+
+
 @app.get("/")
 async def root():
     """Health check endpoint."""
@@ -60,6 +79,21 @@ async def root():
 async def list_conversations():
     """List all conversations (metadata only)."""
     return storage.list_conversations()
+
+
+@app.get("/api/settings", response_model=RuntimeSettings)
+async def get_settings():
+    """Get effective runtime settings."""
+    return get_public_settings()
+
+
+@app.put("/api/settings", response_model=RuntimeSettings)
+async def put_settings(request: UpdateRuntimeSettingsRequest):
+    """Update mutable runtime settings."""
+    try:
+        return update_settings(request.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/conversations", response_model=Conversation)

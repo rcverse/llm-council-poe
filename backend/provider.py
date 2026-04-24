@@ -5,24 +5,20 @@ from typing import List, Dict, Any, Optional, Tuple
 
 import httpx
 
-from .config import (
-    LLM_PROVIDER,
-    LLM_API_KEY,
-    LLM_API_URL,
-    OPENROUTER_API_KEY,
-    DEFAULT_LLM_PROVIDER,
-    PROVIDER_OPENROUTER,
-    PROVIDER_POE,
-)
-
-SUPPORTED_PROVIDERS = {PROVIDER_OPENROUTER, PROVIDER_POE}
+from .runtime_settings import SUPPORTED_PROVIDERS, get_runtime_provider_settings
 
 
 def _resolve_provider_settings() -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """Resolve active provider and credentials."""
-    provider = (LLM_PROVIDER or "").strip().lower()
-    if not provider:
-        provider = DEFAULT_LLM_PROVIDER
+    provider, api_key, api_url = get_runtime_provider_settings()
+
+    if not api_key:
+        print(f"Error: Missing API key for provider '{provider}'.")
+        return provider, None, api_url
+
+    if not api_url:
+        print(f"Error: Missing API URL for provider '{provider}'.")
+        return provider, api_key, None
 
     if provider not in SUPPORTED_PROVIDERS:
         print(
@@ -30,21 +26,6 @@ def _resolve_provider_settings() -> Tuple[Optional[str], Optional[str], Optional
             f"Supported providers: {sorted(SUPPORTED_PROVIDERS)}"
         )
         return None, None, None
-
-    api_key = (LLM_API_KEY or "").strip()
-    if not api_key and provider == PROVIDER_OPENROUTER:
-        # Backward compatibility with previous config layout
-        api_key = (OPENROUTER_API_KEY or "").strip()
-
-    api_url = (LLM_API_URL or "").strip()
-
-    if not api_key:
-        print(f"Error: Missing API key for provider '{provider}'.")
-        return provider, None, api_url or None
-
-    if not api_url:
-        print(f"Error: Missing API URL for provider '{provider}'.")
-        return provider, api_key, None
 
     return provider, api_key, api_url
 
