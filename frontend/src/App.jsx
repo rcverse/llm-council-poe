@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
+import SettingsModal from './components/SettingsModal';
 import { api } from './api';
 import './App.css';
 
@@ -9,36 +10,57 @@ function App() {
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [settings, setSettings] = useState(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSettingsLoading, setIsSettingsLoading] = useState(false);
+  const [isSettingsSaving, setIsSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
+  const [settingsSaveError, setSettingsSaveError] = useState('');
 
-  // Load conversations on mount
-  useEffect(() => {
-    loadConversations();
-  }, []);
-
-  // Load conversation details when selected
-  useEffect(() => {
-    if (currentConversationId) {
-      loadConversation(currentConversationId);
-    }
-  }, [currentConversationId]);
-
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     try {
       const convs = await api.listConversations();
       setConversations(convs);
     } catch (error) {
       console.error('Failed to load conversations:', error);
     }
-  };
+  }, []);
 
-  const loadConversation = async (id) => {
+  const loadConversation = useCallback(async (id) => {
     try {
       const conv = await api.getConversation(id);
       setCurrentConversation(conv);
     } catch (error) {
       console.error('Failed to load conversation:', error);
     }
-  };
+  }, []);
+
+  const loadSettings = useCallback(async () => {
+    setSettingsError('');
+    setIsSettingsLoading(true);
+    try {
+      const currentSettings = await api.getSettings();
+      setSettings(currentSettings);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      setSettingsError('Failed to load settings');
+    } finally {
+      setIsSettingsLoading(false);
+    }
+  }, []);
+
+  // Load conversations + settings on mount
+  useEffect(() => {
+    loadConversations();
+    loadSettings();
+  }, [loadConversations, loadSettings]);
+
+  // Load conversation details when selected
+  useEffect(() => {
+    if (currentConversationId) {
+      loadConversation(currentConversationId);
+    }
+  }, [currentConversationId, loadConversation]);
 
   const handleNewConversation = async () => {
     try {
@@ -55,6 +77,43 @@ function App() {
 
   const handleSelectConversation = (id) => {
     setCurrentConversationId(id);
+  };
+
+  const handleOpenSettings = () => {
+    setSettingsSaveError('');
+    setIsSettingsOpen(true);
+  };
+
+  const handleCloseSettings = () => {
+    if (isSettingsSaving) return;
+    setIsSettingsOpen(false);
+  };
+
+  const handleSaveSettings = async (newSettings) => {
+    setIsSettingsSaving(true);
+    setSettingsSaveError('');
+    try {
+      const savedSettings = await api.updateSettings(newSettings);
+      setSettings(savedSettings);
+      setIsSettingsOpen(false);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      setSettingsSaveError('Failed to save settings');
+    } finally {
+      setIsSettingsSaving(false);
+    }
+  };
+
+  const updateLastAssistantMessage = (updater) => {
+    setCurrentConversation((prev) => {
+      if (!prev?.messages?.length) return prev;
+      const messages = [...prev.messages];
+      const lastIndex = messages.length - 1;
+      const lastMsg = messages[lastIndex];
+      if (!lastMsg || lastMsg.role !== 'assistant') return prev;
+      messages[lastIndex] = updater(lastMsg);
+      return { ...prev, messages };
+    });
   };
 
   const handleSendMessage = async (content) => {
@@ -93,60 +152,55 @@ function App() {
       await api.sendMessageStream(currentConversationId, content, (eventType, event) => {
         switch (eventType) {
           case 'stage1_start':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              lastMsg.loading.stage1 = true;
-              return { ...prev, messages };
+            updateLastAssistantMessage((lastMsg) => {
+              const loading = { ...(lastMsg.loading || {}) };
+              loading.stage1 = true;
+              return { ...lastMsg, loading };
             });
             break;
 
           case 'stage1_complete':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              lastMsg.stage1 = event.data;
-              lastMsg.loading.stage1 = false;
-              return { ...prev, messages };
+            updateLastAssistantMessage((lastMsg) => {
+              const loading = { ...(lastMsg.loading || {}) };
+              loading.stage1 = false;
+              return { ...lastMsg, stage1: event.data, loading };
             });
             break;
 
           case 'stage2_start':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              lastMsg.loading.stage2 = true;
-              return { ...prev, messages };
+            updateLastAssistantMessage((lastMsg) => {
+              const loading = { ...(lastMsg.loading || {}) };
+              loading.stage2 = true;
+              return { ...lastMsg, loading };
             });
             break;
 
           case 'stage2_complete':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              lastMsg.stage2 = event.data;
-              lastMsg.metadata = event.metadata;
-              lastMsg.loading.stage2 = false;
-              return { ...prev, messages };
+            updateLastAssistantMessage((lastMsg) => {
+              const loading = { ...(lastMsg.loading || {}) };
+              loading.stage2 = false;
+              return {
+                ...lastMsg,
+                stage2: event.data,
+                metadata: event.metadata,
+                loading,
+              };
             });
             break;
 
           case 'stage3_start':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              lastMsg.loading.stage3 = true;
-              return { ...prev, messages };
+            updateLastAssistantMessage((lastMsg) => {
+              const loading = { ...(lastMsg.loading || {}) };
+              loading.stage3 = true;
+              return { ...lastMsg, loading };
             });
             break;
 
           case 'stage3_complete':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              lastMsg.stage3 = event.data;
-              lastMsg.loading.stage3 = false;
-              return { ...prev, messages };
+            updateLastAssistantMessage((lastMsg) => {
+              const loading = { ...(lastMsg.loading || {}) };
+              loading.stage3 = false;
+              return { ...lastMsg, stage3: event.data, loading };
             });
             break;
 
@@ -188,12 +242,23 @@ function App() {
         currentConversationId={currentConversationId}
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
+        onOpenSettings={handleOpenSettings}
       />
       <ChatInterface
         conversation={currentConversation}
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
       />
+      {isSettingsOpen && (
+        <SettingsModal
+          settings={settings}
+          isLoading={isSettingsLoading}
+          isSaving={isSettingsSaving}
+          error={settingsError || settingsSaveError}
+          onClose={handleCloseSettings}
+          onSave={handleSaveSettings}
+        />
+      )}
     </div>
   );
 }

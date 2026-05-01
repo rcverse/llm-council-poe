@@ -1,0 +1,107 @@
+.settings-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.settings-modal {
+  width: min(720px, 92vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
+}
+
+.settings-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid #ececec;
+}
+
+.settings-modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.settings-close-btn {
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 6px;
+  padding: 4px 9px;
+  cursor: pointer;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+}
+
+.settings-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.settings-form input,
+.settings-form select,
+.settings-form textarea {
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.settings-help {
+  font-size: 12px;
+  color: #666;
+  margin-top: -2px;
+}
+
+.settings-loading {
+  padding: 20px;
+  color: #666;
+}
+
+.settings-error {
+  background: #fff0f0;
+  border: 1px solid #f0c5c5;
+  color: #a62828;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.settings-actions button {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  cursor: pointer;
+}
+
+.settings-actions button[type='submit'] {
+  background: #4a90e2;
+  color: #fff;
+  border-color: #4a90e2;
+}

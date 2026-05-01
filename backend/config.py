@@ -5,8 +5,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# OpenRouter API key
+# Provider selection (supported: "openrouter", "poe")
+PROVIDER_OPENROUTER = "openrouter"
+PROVIDER_POE = "poe"
+DEFAULT_LLM_PROVIDER = PROVIDER_OPENROUTER
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", DEFAULT_LLM_PROVIDER)
+
+# Backward-compatible OpenRouter-specific API key
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+# Generic API key with provider-specific fallbacks
+LLM_API_KEY = os.getenv("LLM_API_KEY")
+if not LLM_API_KEY:
+    if LLM_PROVIDER == PROVIDER_POE:
+        LLM_API_KEY = os.getenv("POE_API_KEY")
+    else:
+        LLM_API_KEY = OPENROUTER_API_KEY
 
 # Council members - list of OpenRouter model identifiers
 COUNCIL_MODELS = [
@@ -19,8 +33,17 @@ COUNCIL_MODELS = [
 # Chairman model - synthesizes final response
 CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
 
-# OpenRouter API endpoint
+# OpenAI-compatible API endpoints
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+POE_API_URL = "https://api.poe.com/v1/chat/completions"
+
+# Generic API URL with provider-specific default fallback
+LLM_API_URL = os.getenv("LLM_API_URL")
+if not LLM_API_URL:
+    if LLM_PROVIDER == PROVIDER_POE:
+        LLM_API_URL = os.getenv("POE_API_URL", POE_API_URL)
+    else:
+        LLM_API_URL = os.getenv("OPENROUTER_API_URL", OPENROUTER_API_URL)
 
 # Data directory for conversation storage
 DATA_DIR = "data/conversations"

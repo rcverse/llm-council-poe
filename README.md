@@ -2,7 +2,14 @@
 
 ![llmcouncil](header.jpg)
 
-The idea of this repo is that instead of asking a question to your favorite LLM provider (e.g. OpenAI GPT 5.1, Google Gemini 3.0 Pro, Anthropic Claude Sonnet 4.5, xAI Grok 4, eg.c), you can group them into your "LLM Council". This repo is a simple, local web app that essentially looks like ChatGPT except it uses OpenRouter to send your query to multiple LLMs, it then asks them to review and rank each other's work, and finally a Chairman LLM produces the final response.
+This repository is a fork of the original LLM Council project. The goal of this fork is to keep the original experience intact while adding provider flexibility for this repo's users.
+
+## What changed in this fork
+
+- Added dual-provider support through a shared OpenAI-compatible client flow.
+- Added provider selection via config/env (`openrouter` or `poe`).
+- Kept backward compatibility for existing OpenRouter-only setups.
+- Kept the original 3-stage council behavior unchanged.
 
 In a bit more detail, here is what happens when you submit a query:
 
@@ -14,7 +21,7 @@ In a bit more detail, here is what happens when you submit a query:
 
 This project was 99% vibe coded as a fun Saturday hack because I wanted to explore and evaluate a number of LLMs side by side in the process of [reading books together with LLMs](https://x.com/karpathy/status/1990577951671509438). It's nice and useful to see multiple responses side by side, and also the cross-opinions of all LLMs on each other's outputs. I'm not going to support it in any way, it's provided here as is for other people's inspiration and I don't intend to improve it. Code is ephemeral now and libraries are over, ask your LLM to change it in whatever way you like.
 
-## Setup
+## Setup (fork-specific notes)
 
 ### 1. Install Dependencies
 
@@ -32,30 +39,40 @@ npm install
 cd ..
 ```
 
-### 2. Configure API Key
+### 2. Configure Provider + API Credentials
 
 Create a `.env` file in the project root:
 
 ```bash
+# Choose provider: "openrouter" (default) or "poe"
+LLM_PROVIDER=openrouter
+
+# Optional generic credentials (works for both providers)
+# LLM_API_KEY=...
+# LLM_API_URL=https://.../v1/chat/completions
+
+# Backward-compatible OpenRouter setup
 OPENROUTER_API_KEY=sk-or-v1-...
+
+# Optional provider-specific Poe key (used when LLM_PROVIDER=poe and LLM_API_KEY is unset)
+# POE_API_KEY=...
 ```
 
-Get your API key at [openrouter.ai](https://openrouter.ai/). Make sure to purchase the credits you need, or sign up for automatic top up.
+Provider details:
+- OpenRouter API key: [openrouter.ai](https://openrouter.ai/)
+- Poe can be used via an OpenAI-compatible endpoint and key by setting `LLM_PROVIDER=poe` and `LLM_API_KEY` (or `POE_API_KEY`).
 
-### 3. Configure Models (Optional)
+Migration note:
+- Existing setups with only `OPENROUTER_API_KEY` continue to work (default provider is OpenRouter).
 
-Edit `backend/config.py` to customize the council:
+### 3. Configure Runtime Settings (Optional)
 
-```python
-COUNCIL_MODELS = [
-    "openai/gpt-5.1",
-    "google/gemini-3-pro-preview",
-    "anthropic/claude-sonnet-4.5",
-    "x-ai/grok-4",
-]
+You can now configure provider, API URL, council models, and chairman model from the UI:
 
-CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
-```
+- Open the **Settings** button in the sidebar.
+- Save settings to apply them to new requests.
+- Non-secret runtime settings are persisted in `data/settings.json`.
+- API keys are accepted via settings but are not returned by the API.
 
 ## Running the Application
 
@@ -81,7 +98,7 @@ Then open http://localhost:5173 in your browser.
 
 ## Tech Stack
 
-- **Backend:** FastAPI (Python 3.10+), async httpx, OpenRouter API
+- **Backend:** FastAPI (Python 3.10+), async httpx, OpenAI-compatible provider client (OpenRouter/Poe)
 - **Frontend:** React + Vite, react-markdown for rendering
-- **Storage:** JSON files in `data/conversations/`
+- **Storage:** JSON files in `data/conversations/` and `data/settings.json`
 - **Package Management:** uv for Python, npm for JavaScript
