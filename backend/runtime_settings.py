@@ -12,7 +12,10 @@ from .config import (
     DEFAULT_LLM_PROVIDER,
     OPENROUTER_API_KEY,
     OPENROUTER_API_URL,
+    OPENROUTER_TO_POE,
     POE_API_URL,
+    POE_TO_OPENROUTER,
+    PROVIDER_DEFAULT_MODELS,
     PROVIDER_OPENROUTER,
     PROVIDER_POE,
 )
@@ -153,14 +156,46 @@ def get_runtime_provider_settings() -> Tuple[str, Optional[str], str]:
     return provider, api_key, settings["llm_api_url"]
 
 
+def _translate_model(model: str, from_provider: str, to_provider: str) -> str:
+    """
+    Translate a model identifier between providers.
+
+    Uses the mapping tables from config.  Returns the original name unchanged
+    if no mapping is found (the user may have entered a custom model name).
+    """
+    if from_provider == to_provider:
+        return model
+    if from_provider == PROVIDER_OPENROUTER and to_provider == PROVIDER_POE:
+        return OPENROUTER_TO_POE.get(model, model)
+    if from_provider == PROVIDER_POE and to_provider == PROVIDER_OPENROUTER:
+        return POE_TO_OPENROUTER.get(model, model)
+    return model
+
+
+def _translate_models(models: List[str], from_provider: str, to_provider: str) -> List[str]:
+    """Translate a list of model identifiers between providers."""
+    return [_translate_model(m, from_provider, to_provider) for m in models]
+
+
 def update_settings(updates: Dict[str, Any]) -> Dict[str, Any]:
     """
     Update mutable runtime settings.
 
     Non-secret settings are persisted to disk. Secret overrides remain in-memory only.
+
+    When the provider changes, existing council_models and chairman_model are
+    automatically translated to their equivalents in the new provider's naming
+    convention (using the mapping table in config.py).  If the update also
+    explicitly provides council_models or chairman_model, those values are used
+    as-is (allowing the caller to override the translation).
     """
     persisted = _read_settings_file()
     new_persisted = dict(persisted)
+
+    # Detect provider change before applying other updates
+    old_provider = _normalize_provider(persisted.get("llm_provider"))
+    new_provider = old_provider
+    provider_changed = False
 
     if "llm_provider" in updates and updates["llm_provider"] is not None:
         raw_provider = str(updates["llm_provider"]).strip().lower()
@@ -168,7 +203,9 @@ def update_settings(updates: Dict[str, Any]) -> Dict[str, Any]:
             raise ValueError(
                 f"Unsupported provider. Supported providers: {sorted(SUPPORTED_PROVIDERS)}"
             )
+        new_provider = raw_provider
         new_persisted["llm_provider"] = raw_provider
+        provider_changed = new_provider != old_provider
 
     if "llm_api_url" in updates and updates["llm_api_url"] is not None:
         url = str(updates["llm_api_url"]).strip()
@@ -177,13 +214,23 @@ def update_settings(updates: Dict[str, Any]) -> Dict[str, Any]:
         else:
             new_persisted.pop("llm_api_url", None)
 
-    if "council_models" in updates and updates["council_models"] is not None:
+    # If provider changed and the caller did NOT supply new models, auto-translate
+    if provider_changed and "council_models" not in updates:
+        existing_models = _normalize_models(persisted.get("council_models"))
+        translated = _translate_models(existing_models, old_provider, new_provider)
+        new_persisted["council_models"] = translated
+    elif "council_models" in updates and updates["council_models"] is not None:
         models = _normalize_models(updates["council_models"])
         if not models:
             raise ValueError("council_models must contain at least one model")
         new_persisted["council_models"] = models
 
-    if "chairman_model" in updates and updates["chairman_model"] is not None:
+    if provider_changed and "chairman_model" not in updates:
+        existing_chairman = str(persisted.get("chairman_model") or "").strip() or CHAIRMAN_MODEL
+        new_persisted["chairman_model"] = _translate_model(
+            existing_chairman, old_provider, new_provider
+        )
+    elif "chairman_model" in updates and updates["chairman_model"] is not None:
         chairman_model = str(updates["chairman_model"]).strip()
         if not chairman_model:
             raise ValueError("chairman_model cannot be empty")

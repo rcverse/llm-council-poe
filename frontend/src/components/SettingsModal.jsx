@@ -6,6 +6,50 @@ const PROVIDER_HELP_TEXT = {
   openrouter: 'OpenRouter remains the default provider.',
 };
 
+// Model name translation tables (mirrors backend/config.py)
+const OPENROUTER_TO_POE = {
+  'openai/gpt-5.5': 'GPT-5.5',
+  'openai/gpt-5.1': 'GPT-5.1',
+  'openai/gpt-4.1': 'GPT-4.1',
+  'openai/gpt-4o': 'GPT-4o',
+  'openai/gpt-4o-mini': 'GPT-4o-mini',
+  'openai/o3': 'o3',
+  'openai/o3-mini': 'o3-mini',
+  'openai/o1': 'o1',
+  'anthropic/claude-opus-4-6': 'claude-opus-4-6',
+  'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6',
+  'anthropic/claude-opus-4-5': 'claude-opus-4-5',
+  'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5',
+  'anthropic/claude-sonnet-4.5': 'claude-sonnet-4.5',
+  'anthropic/claude-3-7-sonnet': 'claude-3-7-sonnet',
+  'anthropic/claude-3-5-sonnet': 'claude-3-5-sonnet',
+  'anthropic/claude-3-opus': 'claude-3-opus',
+  'google/gemini-3-pro-preview': 'gemini-3-pro-preview',
+  'google/gemini-2.5-pro': 'gemini-2.5-pro',
+  'google/gemini-2.5-flash': 'gemini-2.5-flash',
+  'google/gemini-2-flash': 'gemini-2-flash',
+  'x-ai/grok-4': 'grok-4',
+  'x-ai/grok-3': 'grok-3',
+  'x-ai/grok-3-mini': 'grok-3-mini',
+};
+
+const POE_TO_OPENROUTER = Object.fromEntries(
+  Object.entries(OPENROUTER_TO_POE).map(([k, v]) => [v, k])
+);
+
+function translateModel(model, fromProvider, toProvider) {
+  if (fromProvider === toProvider) return model;
+  const map = fromProvider === 'openrouter' ? OPENROUTER_TO_POE : POE_TO_OPENROUTER;
+  return map[model] ?? model;
+}
+
+function translateModels(modelsText, fromProvider, toProvider) {
+  return modelsText
+    .split('\n')
+    .map((line) => translateModel(line.trim(), fromProvider, toProvider))
+    .join('\n');
+}
+
 export default function SettingsModal({
   settings,
   isLoading,
@@ -26,6 +70,15 @@ export default function SettingsModal({
   const providerHelp = useMemo(() => {
     return PROVIDER_HELP_TEXT[provider] || 'Use an OpenAI-compatible provider.';
   }, [provider]);
+
+  const handleProviderChange = (e) => {
+    const newProvider = e.target.value;
+    const oldProvider = provider;
+    setProvider(newProvider);
+    // Auto-translate model names when provider changes
+    setModelsText((prev) => translateModels(prev, oldProvider, newProvider));
+    setChairmanModel((prev) => translateModel(prev.trim(), oldProvider, newProvider));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -77,7 +130,7 @@ export default function SettingsModal({
               Provider
               <select
                 value={provider}
-                onChange={(e) => setProvider(e.target.value)}
+                onChange={handleProviderChange}
                 disabled={isSaving}
               >
                 <option value="openrouter">openrouter</option>

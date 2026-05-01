@@ -12,6 +12,7 @@ import asyncio
 from . import storage
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 from .runtime_settings import get_public_settings, update_settings
+from .config import PROVIDER_DEFAULT_MODELS
 
 app = FastAPI(title="LLM Council API")
 
@@ -96,7 +97,13 @@ async def put_settings(request: UpdateRuntimeSettingsRequest):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@app.post("/api/conversations", response_model=Conversation)
+@app.get("/api/providers/defaults")
+async def get_provider_defaults():
+    """Get default council models and chairman model for each supported provider."""
+    return PROVIDER_DEFAULT_MODELS
+
+
+
 async def create_conversation(request: CreateConversationRequest):
     """Create a new conversation."""
     conversation_id = str(uuid.uuid4())
