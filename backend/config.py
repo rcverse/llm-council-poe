@@ -33,7 +33,7 @@ if not LLM_API_KEY:
 #
 # Chairman (synthesizer) – anthropic/claude-opus-4-6:
 #   Opus-class models consistently excel at following complex multi-step
-#   instructions, synthesising diverse perspectives, and producing coherent
+#   instructions, synthesizing diverse perspectives, and producing coherent
 #   long-form text — exactly what the chairman role demands. Opus 4.6 is
 #   the most capable available Anthropic model, making it the best choice
 #   to act as the final arbiter of the council.

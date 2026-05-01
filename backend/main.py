@@ -103,7 +103,7 @@ async def get_provider_defaults():
     return PROVIDER_DEFAULT_MODELS
 
 
-
+@app.post("/api/conversations", response_model=Conversation)
 async def create_conversation(request: CreateConversationRequest):
     """Create a new conversation."""
     conversation_id = str(uuid.uuid4())
