@@ -173,10 +173,10 @@ SUPPORTED_FILE_TYPES = (
 
 def is_model_file_capable(model: str, provider: str) -> bool:
     """Return True if the model supports multimodal file inputs."""
+    model_lower = model.lower()
     if provider == PROVIDER_POE:
-        return any(model.startswith(prefix) for prefix in POE_FILE_CAPABLE_PREFIXES)
-    # Default: check OpenRouter prefixes (case-insensitive for the provider part)
-    return any(model.lower().startswith(prefix.lower()) for prefix in OPENROUTER_FILE_CAPABLE_PREFIXES)
+        return any(model_lower.startswith(prefix.lower()) for prefix in POE_FILE_CAPABLE_PREFIXES)
+    return any(model_lower.startswith(prefix.lower()) for prefix in OPENROUTER_FILE_CAPABLE_PREFIXES)
 
 
 def are_all_models_file_capable(models: list, provider: str) -> bool:

@@ -7,6 +7,7 @@ import './ChatInterface.css';
 
 const ACCEPTED_FILE_TYPES = 'image/jpeg,image/png,image/gif,image/webp,application/pdf';
 const MAX_FILE_SIZE_MB = 20;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 function readFileAsBase64(file) {
   return new Promise((resolve, reject) => {
@@ -46,7 +47,7 @@ export default function ChatInterface({
     const files = Array.from(e.target.files);
     if (!files.length) return;
 
-    const oversized = files.filter((f) => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+    const oversized = files.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
     if (oversized.length) {
       setFileError(`Files must be under ${MAX_FILE_SIZE_MB} MB.`);
       e.target.value = '';
