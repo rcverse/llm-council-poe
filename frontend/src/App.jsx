@@ -16,6 +16,7 @@ function App() {
   const [isSettingsSaving, setIsSettingsSaving] = useState(false);
   const [settingsError, setSettingsError] = useState('');
   const [settingsSaveError, setSettingsSaveError] = useState('');
+  const [fileAttachmentSupported, setFileAttachmentSupported] = useState(false);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -39,8 +40,12 @@ function App() {
     setSettingsError('');
     setIsSettingsLoading(true);
     try {
-      const currentSettings = await api.getSettings();
+      const [currentSettings, caps] = await Promise.all([
+        api.getSettings(),
+        api.getCapabilities(),
+      ]);
       setSettings(currentSettings);
+      setFileAttachmentSupported(caps.file_attachment_supported ?? false);
     } catch (error) {
       console.error('Failed to load settings:', error);
       setSettingsError('Failed to load settings');
@@ -95,6 +100,13 @@ function App() {
     try {
       const savedSettings = await api.updateSettings(newSettings);
       setSettings(savedSettings);
+      // Re-check capabilities when models/provider change
+      try {
+        const caps = await api.getCapabilities();
+        setFileAttachmentSupported(caps.file_attachment_supported ?? false);
+      } catch {
+        // non-fatal
+      }
       setIsSettingsOpen(false);
     } catch (error) {
       console.error('Failed to save settings:', error);
@@ -116,13 +128,17 @@ function App() {
     });
   };
 
-  const handleSendMessage = async (content) => {
+  const handleSendMessage = async (content, fileAttachments = []) => {
     if (!currentConversationId) return;
 
     setIsLoading(true);
     try {
       // Optimistically add user message to UI
-      const userMessage = { role: 'user', content };
+      const userMessage = {
+        role: 'user',
+        content,
+        attachments: fileAttachments.map((f) => ({ name: f.name, media_type: f.mediaType })),
+      };
       setCurrentConversation((prev) => ({
         ...prev,
         messages: [...prev.messages, userMessage],
@@ -223,7 +239,7 @@ function App() {
           default:
             console.log('Unknown event type:', eventType);
         }
-      });
+      }, fileAttachments);
     } catch (error) {
       console.error('Failed to send message:', error);
       // Remove optimistic messages on error
@@ -248,6 +264,7 @@ function App() {
         conversation={currentConversation}
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
+        fileAttachmentSupported={fileAttachmentSupported}
       />
       {isSettingsOpen && (
         <SettingsModal

@@ -5,12 +5,32 @@ import Stage2 from './Stage2';
 import Stage3 from './Stage3';
 import './ChatInterface.css';
 
+const ACCEPTED_FILE_TYPES = 'image/jpeg,image/png,image/gif,image/webp,application/pdf';
+const MAX_FILE_SIZE_MB = 20;
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      // reader.result is "data:<mime>;base64,<data>" — strip the prefix
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ChatInterface({
   conversation,
   onSendMessage,
   isLoading,
+  fileAttachmentSupported,
 }) {
   const [input, setInput] = useState('');
+  const [pendingFiles, setPendingFiles] = useState([]);
+  const [fileError, setFileError] = useState('');
+  const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -21,11 +41,44 @@ export default function ChatInterface({
     scrollToBottom();
   }, [conversation]);
 
+  const handleFileChange = async (e) => {
+    setFileError('');
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    const oversized = files.filter((f) => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+    if (oversized.length) {
+      setFileError(`Files must be under ${MAX_FILE_SIZE_MB} MB.`);
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      const attachments = await Promise.all(
+        files.map(async (file) => ({
+          name: file.name,
+          mediaType: file.type,
+          data: await readFileAsBase64(file),
+        }))
+      );
+      setPendingFiles((prev) => [...prev, ...attachments]);
+    } catch {
+      setFileError('Failed to read file(s). Please try again.');
+    }
+    e.target.value = '';
+  };
+
+  const handleRemoveFile = (index) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
-      onSendMessage(input);
+      onSendMessage(input, pendingFiles);
       setInput('');
+      setPendingFiles([]);
+      setFileError('');
     }
   };
 
@@ -63,6 +116,15 @@ export default function ChatInterface({
                 <div className="user-message">
                   <div className="message-label">You</div>
                   <div className="message-content">
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div className="message-attachments">
+                        {msg.attachments.map((att, i) => (
+                          <span key={i} className="attachment-badge">
+                            📎 {att.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <div className="markdown-content">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
@@ -122,22 +184,64 @@ export default function ChatInterface({
 
       {conversation.messages.length === 0 && (
         <form className="input-form" onSubmit={handleSubmit}>
-          <textarea
-            className="message-input"
-            placeholder="Ask your question... (Shift+Enter for new line, Enter to send)"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isLoading}
-            rows={3}
-          />
-          <button
-            type="submit"
-            className="send-button"
-            disabled={!input.trim() || isLoading}
-          >
-            Send
-          </button>
+          {pendingFiles.length > 0 && (
+            <div className="pending-files">
+              {pendingFiles.map((f, i) => (
+                <span key={i} className="pending-file-chip">
+                  📎 {f.name}
+                  <button
+                    type="button"
+                    className="remove-file-btn"
+                    onClick={() => handleRemoveFile(i)}
+                    aria-label={`Remove ${f.name}`}
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {fileError && <div className="file-error">{fileError}</div>}
+          <div className="input-row">
+            {fileAttachmentSupported && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_FILE_TYPES}
+                  multiple
+                  className="file-input-hidden"
+                  onChange={handleFileChange}
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  className="attach-button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading}
+                  title="Attach image or PDF"
+                >
+                  📎
+                </button>
+              </>
+            )}
+            <textarea
+              className="message-input"
+              placeholder="Ask your question... (Shift+Enter for new line, Enter to send)"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isLoading}
+              rows={3}
+            />
+            <button
+              type="submit"
+              className="send-button"
+              disabled={!input.trim() || isLoading}
+            >
+              Send
+            </button>
+          </div>
         </form>
       )}
     </div>

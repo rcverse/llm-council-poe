@@ -1,16 +1,21 @@
 """3-stage LLM Council orchestration."""
 
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Optional, Tuple
 from .provider import query_models_parallel, query_model
 from .runtime_settings import get_effective_settings
 
 
-async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
+async def stage1_collect_responses(
+    user_query: str,
+    file_attachments: Optional[List[Dict[str, str]]] = None,
+) -> List[Dict[str, Any]]:
     """
     Stage 1: Collect individual responses from all council models.
 
     Args:
         user_query: The user's question
+        file_attachments: Optional list of file dicts with 'name', 'data'
+            (base64) and 'media_type' to include with the user message.
 
     Returns:
         List of dicts with 'model' and 'response' keys
@@ -21,7 +26,7 @@ async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
     council_models = settings["council_models"]
 
     # Query all models in parallel
-    responses = await query_models_parallel(council_models, messages)
+    responses = await query_models_parallel(council_models, messages, file_attachments=file_attachments)
 
     # Format results
     stage1_results = []
@@ -302,18 +307,23 @@ Title:"""
     return title
 
 
-async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
+async def run_full_council(
+    user_query: str,
+    file_attachments: Optional[List[Dict[str, str]]] = None,
+) -> Tuple[List, List, Dict, Dict]:
     """
     Run the complete 3-stage council process.
 
     Args:
         user_query: The user's question
+        file_attachments: Optional list of file dicts with 'name', 'data'
+            (base64) and 'media_type'.
 
     Returns:
         Tuple of (stage1_results, stage2_results, stage3_result, metadata)
     """
     # Stage 1: Collect individual responses
-    stage1_results = await stage1_collect_responses(user_query)
+    stage1_results = await stage1_collect_responses(user_query, file_attachments=file_attachments)
 
     # If no models responded successfully, return error
     if not stage1_results:

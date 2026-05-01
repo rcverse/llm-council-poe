@@ -12,7 +12,7 @@ import asyncio
 from . import storage
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 from .runtime_settings import get_public_settings, update_settings
-from .config import PROVIDER_DEFAULT_MODELS
+from .config import PROVIDER_DEFAULT_MODELS, are_all_models_file_capable
 
 app = FastAPI(title="LLM Council API")
 
@@ -34,6 +34,12 @@ class CreateConversationRequest(BaseModel):
 class SendMessageRequest(BaseModel):
     """Request to send a message in a conversation."""
     content: str
+    file_attachments: List[Dict[str, str]] = []
+
+
+class FileCapabilities(BaseModel):
+    """File attachment capability flags."""
+    file_attachment_supported: bool
 
 
 class ConversationMetadata(BaseModel):
@@ -103,6 +109,16 @@ async def get_provider_defaults():
     return PROVIDER_DEFAULT_MODELS
 
 
+@app.get("/api/capabilities", response_model=FileCapabilities)
+async def get_capabilities():
+    """Return which optional features are supported with the current model configuration."""
+    from .runtime_settings import get_effective_settings
+    settings = get_effective_settings()
+    all_models = settings["council_models"] + [settings["chairman_model"]]
+    provider = settings["llm_provider"]
+    return {"file_attachment_supported": are_all_models_file_capable(all_models, provider)}
+
+
 @app.post("/api/conversations", response_model=Conversation)
 async def create_conversation(request: CreateConversationRequest):
     """Create a new conversation."""
@@ -135,7 +151,14 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
     is_first_message = len(conversation["messages"]) == 0
 
     # Add user message
-    storage.add_user_message(conversation_id, request.content)
+    storage.add_user_message(
+        conversation_id,
+        request.content,
+        attachment_metadata=[
+            {"name": f["name"], "media_type": f["media_type"]}
+            for f in request.file_attachments
+        ] if request.file_attachments else None,
+    )
 
     # If this is the first message, generate a title
     if is_first_message:
@@ -144,7 +167,8 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
 
     # Run the 3-stage council process
     stage1_results, stage2_results, stage3_result, metadata = await run_full_council(
-        request.content
+        request.content,
+        file_attachments=request.file_attachments or None,
     )
 
     # Add assistant message with all stages
@@ -181,7 +205,14 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
     async def event_generator():
         try:
             # Add user message
-            storage.add_user_message(conversation_id, request.content)
+            storage.add_user_message(
+                conversation_id,
+                request.content,
+                attachment_metadata=[
+                    {"name": f["name"], "media_type": f["media_type"]}
+                    for f in request.file_attachments
+                ] if request.file_attachments else None,
+            )
 
             # Start title generation in parallel (don't await yet)
             title_task = None
@@ -190,7 +221,10 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
 
             # Stage 1: Collect responses
             yield f"data: {json.dumps({'type': 'stage1_start'})}\n\n"
-            stage1_results = await stage1_collect_responses(request.content)
+            stage1_results = await stage1_collect_responses(
+                request.content,
+                file_attachments=request.file_attachments or None,
+            )
             yield f"data: {json.dumps({'type': 'stage1_complete', 'data': stage1_results})}\n\n"
 
             # Stage 2: Collect rankings

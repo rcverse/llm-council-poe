@@ -95,13 +95,34 @@ export const api = {
   },
 
   /**
+   * Get feature capabilities based on current model configuration.
+   */
+  async getCapabilities() {
+    const response = await fetch(`${API_BASE}/api/capabilities`);
+    if (!response.ok) {
+      throw new Error('Failed to get capabilities');
+    }
+    return response.json();
+  },
+
+  /**
    * Send a message and receive streaming updates.
    * @param {string} conversationId - The conversation ID
    * @param {string} content - The message content
    * @param {function} onEvent - Callback function for each event: (eventType, data) => void
+   * @param {Array} fileAttachments - Optional array of {name, data, mediaType} objects
    * @returns {Promise<void>}
    */
-  async sendMessageStream(conversationId, content, onEvent) {
+  async sendMessageStream(conversationId, content, onEvent, fileAttachments = []) {
+    const body = { content };
+    if (fileAttachments.length > 0) {
+      body.file_attachments = fileAttachments.map((f) => ({
+        name: f.name,
+        data: f.data,
+        media_type: f.mediaType,
+      }));
+    }
+
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/message/stream`,
       {
@@ -109,7 +130,7 @@ export const api = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify(body),
       }
     );
 
